@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2022 Intel Corporation
+* Copyright 2023 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -66,6 +66,19 @@ status_t ref_pooling_fwd_t::pd_t::init_conf() {
     conf_.DH = KDH(); //K:kernel D:Dilation H:Height
     conf_.DW = KDW(); //K:kernel D:Dilation W:Weight
 
+    const auto *att = attr();
+    const auto &attr_po = att->post_ops_;
+    conf_.po_len = attr_po.len();
+    using namespace primitive_kind;
+    for (auto i = 0; i < attr_po.len(); ++i) {
+        if (attr_po.contain(binary, i)) {
+            dnnl::impl::memory_desc_t mem = attr_po.entry_[i].binary.src1_desc;
+            conf_.src1_md[i] = sycl_md_t(&mem);
+        }
+    }
+
+    conf_.post_ops = sycl_post_ops_t(attr());
+
     return status::success;
 }
 
@@ -83,8 +96,19 @@ status_t ref_pooling_fwd_t::execute_forward(const exec_ctx_t &ctx) const {
         auto src = CTX_IN_SYCL_KERNEL_MEMORY(DNNL_ARG_SRC);
         auto dst = CTX_OUT_SYCL_KERNEL_MEMORY(DNNL_ARG_DST);
         auto ws = CTX_OUT_SYCL_KERNEL_MEMORY(DNNL_ARG_WORKSPACE);
+        auto post_v0 = CTX_IN_SYCL_KERNEL_MEMORY(
+                DNNL_ARG_ATTR_MULTIPLE_POST_OP(0) | DNNL_ARG_SRC_1);
+        auto post_v1 = CTX_IN_SYCL_KERNEL_MEMORY(
+                DNNL_ARG_ATTR_MULTIPLE_POST_OP(1) | DNNL_ARG_SRC_1);
+        auto post_v2 = CTX_IN_SYCL_KERNEL_MEMORY(
+                DNNL_ARG_ATTR_MULTIPLE_POST_OP(2) | DNNL_ARG_SRC_1);
+        auto post_v3 = CTX_IN_SYCL_KERNEL_MEMORY(
+                DNNL_ARG_ATTR_MULTIPLE_POST_OP(3) | DNNL_ARG_SRC_1);
+        auto post_v4 = CTX_IN_SYCL_KERNEL_MEMORY(
+                DNNL_ARG_ATTR_MULTIPLE_POST_OP(4) | DNNL_ARG_SRC_1);
         auto nelems_A = memory_desc_wrapper(pd()->src_md(0)).nelems();
-        pooling_fwd_kernel_vec_t pooling_fwd_kernel(pd()->conf_, src, dst, ws);
+        pooling_fwd_kernel_vec_t pooling_fwd_kernel(pd()->conf_, src, dst, ws,
+                post_v0, post_v1, post_v2, post_v3, post_v4);
 
         const int block_size = pd()->conf_.block_size;
         const int wg_size = pd()->conf_.wg_size;

@@ -45,7 +45,7 @@ struct sycl_binary_conf_t {
 
 struct sycl_pooling_conf_t {
     sycl_md_t src_md;
-
+    sycl_md_t src1_md[8];
     sycl_md_t dst_md;
     sycl_md_t ws_md;
     sycl_md_t diff_src_md;
@@ -79,10 +79,10 @@ struct sycl_pooling_conf_t {
     dim_t DW;
     dims_t dst_dims;
     int dst_ndims;
+    sycl_post_ops_t post_ops;
 };
 
 CHECK_SYCL_KERNEL_ARG_TYPE(sycl_pooling_conf_t);
-
 CHECK_SYCL_KERNEL_ARG_TYPE(sycl_binary_conf_t);
 
 } // namespace sycl

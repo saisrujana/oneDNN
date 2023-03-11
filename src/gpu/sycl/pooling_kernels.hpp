@@ -22,6 +22,7 @@
 #include "common/nstl.hpp"
 #include "common/primitive_attr.hpp"
 #include "gpu/sycl/sycl_io_helper.hpp"
+#include "gpu/sycl/sycl_post_ops.hpp"
 #include "gpu/sycl/sycl_primitive_conf.hpp"
 #include "gpu/sycl/sycl_q10n.hpp"
 #include "gpu/sycl/sycl_types.hpp"
@@ -36,8 +37,18 @@ struct pooling_fwd_kernel_vec_t {
 
     pooling_fwd_kernel_vec_t(const sycl_pooling_conf_t &conf,
             sycl_in_memory_arg_t &src, sycl_out_memory_arg_t &dst,
-            sycl_out_memory_arg_t &ws)
-        : conf_(conf), src_(src), dst_(dst), ws_(ws) {}
+            sycl_out_memory_arg_t &ws, sycl_in_memory_arg_t &src_1,
+            sycl_in_memory_arg_t &src_2, sycl_in_memory_arg_t &src_3,
+            sycl_in_memory_arg_t &src_4, sycl_in_memory_arg_t &src_5)
+        : conf_(conf)
+        , src_(src)
+        , dst_(dst)
+        , ws_(ws)
+        , src_1_(src_1)
+        , src_2_(src_2)
+        , src_3_(src_3)
+        , src_4_(src_4)
+        , src_5_(src_5) {}
 
     [[sycl::reqd_sub_group_size(32)]] void operator()(
             ::sycl::nd_item<1> item) const {
@@ -68,6 +79,20 @@ struct pooling_fwd_kernel_vec_t {
 
             ::sycl::vec<float, 8> dst_arr;
 
+            for (int idx = 0; idx < conf_.po_len; ++idx) {
+                float r = 0.0f;
+                if (conf_.post_ops.Get_Post_Op_Kind(idx)
+                        == primitive_kind::binary) {
+                    if (idx == 0) { r = dst_Value(src_1_, idx, data_l_off); }
+                    if (idx == 1) { r = dst_Value(src_2_, idx, data_l_off); }
+                    if (idx == 2) { r = dst_Value(src_3_, idx, data_l_off); }
+                    if (idx == 3) { r = dst_Value(src_4_, idx, data_l_off); }
+                    if (idx == 4) { r = dst_Value(src_5_, idx, data_l_off); }
+                    dst_arr[idx] = r;
+                }
+            }
+            res = conf_.post_ops.apply(res, dst_arr);
+
             store_float_value(dst_md().data_type(), res, dst_ptr(), data_p_off);
             utils::nd_iterator_step(mb, MB, oc, OC, od, OD, oh, OH, ow, OW);
         }
@@ -79,6 +104,9 @@ private:
     const sycl_md_t &ws_md() const { return conf_.ws_md; }
 
     void *src_ptr() const { return src_.get_pointer(); }
+    void *gen_ptr(sycl_in_memory_arg_t gen_) const {
+        return gen_.get_pointer();
+    }
     void *dst_ptr() const { return dst_.get_pointer(); }
     void *ws_ptr() const { return ws_.get_pointer(); }
 
@@ -112,6 +140,46 @@ private:
                 return (float)numeric_limits<
                         typename prec_traits<data_type::f32>::type>::lowest();
         }
+    }
+
+    float dst_Value(sycl_in_memory_arg_t arr, int idx, int offset) const {
+        auto src1_desc = conf_.src1_md[idx];
+        dim_t src_dim[DNNL_MAX_NDIMS];
+        auto src_dim_ = src1_desc.dims();
+
+        for (int j = 0; j < src1_desc.ndims(); j++) {
+            src_dim[j] = src_dim_[j];
+        }
+        const auto off = get_binary_src1_off(
+                src1_desc, src_dim, offset, conf_.dst_dims, conf_.dst_ndims);
+        auto dst = load_float_value(src1_desc.data_type(), gen_ptr(arr), off);
+        return dst;
+    }
+
+    dim_t get_binary_src1_off(const sycl_md_t &src1_md, const dim_t *src_dim,
+            const dim_t l_offset, const dim_t *dst_dims,
+            const int dst_ndims) const {
+
+        const int mask_binary_po
+                = utils::get_dims_mask(dst_dims, src_dim, dst_ndims);
+
+        return get_po_tensor_off(
+                src1_md, l_offset, dst_dims, dst_ndims, mask_binary_po);
+    }
+
+    dim_t get_po_tensor_off(const sycl_md_t &tensor_md, const dim_t l_offset,
+            const dim_t *dst_dims, const int dst_ndims, int mask) const {
+
+        dims_t l_dims_po {};
+        get_l_dims_po(l_dims_po, l_offset, dst_dims, dst_ndims, mask);
+
+        return tensor_md.off_v(l_dims_po);
+    }
+
+    void get_l_dims_po(dims_t &l_dims_po, const dim_t l_offset,
+            const dim_t *dst_dims, const int dst_ndims, int mask) const {
+        utils::l_dims_by_l_offset(l_dims_po, l_offset, dst_dims, dst_ndims);
+        utils::apply_mask_on_dims(l_dims_po, dst_ndims, mask);
     }
 
     void set_ws(dim_t mb, dim_t oc, dim_t od, dim_t oh, dim_t ow,
@@ -228,6 +296,11 @@ private:
     sycl_in_memory_arg_t src_;
     sycl_out_memory_arg_t dst_;
     sycl_out_memory_arg_t ws_;
+    sycl_in_memory_arg_t src_1_;
+    sycl_in_memory_arg_t src_2_;
+    sycl_in_memory_arg_t src_3_;
+    sycl_in_memory_arg_t src_4_;
+    sycl_in_memory_arg_t src_5_;
 };
 
 //backward

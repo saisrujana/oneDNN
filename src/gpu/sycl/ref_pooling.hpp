@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2022 Intel Corporation
+* Copyright 2023 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 #include "gpu/primitive_conf.hpp"
 #include "gpu/sycl/sycl_gpu_primitive.hpp"
 #include "gpu/sycl/sycl_io_helper.hpp"
+#include "gpu/sycl/sycl_post_ops.hpp"
 #include "gpu/sycl/sycl_primitive_conf.hpp"
 #include "gpu/sycl/sycl_q10n.hpp"
 #include "gpu/sycl/sycl_types.hpp"
@@ -61,6 +62,7 @@ struct ref_pooling_fwd_t : public sycl_gpu_primitive_t {
                                     dst_md(0)->data_type)
                             || utils::everyone_is(s32, src_md(0)->data_type,
                                     dst_md(0)->data_type))
+                    && attr()->has_default_values(sm::post_ops)
                     && attr_.set_default_formats(dst_md(0)) == status::success;
             if (!ok) return status::unimplemented;
             // TODO: extend sycl device info to check supported sub-group sizes.
