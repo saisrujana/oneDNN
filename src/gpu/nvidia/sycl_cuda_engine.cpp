@@ -39,6 +39,7 @@
 #include "gpu/nvidia/sycl_cuda_stream.hpp"
 
 #include "gpu/sycl/ref_binary.hpp"
+#include "gpu/sycl/ref_pooling.hpp"
 
 namespace dnnl {
 namespace impl {
@@ -216,8 +217,10 @@ constexpr dnnl::impl::impl_list_item_t sycl_cuda_impl_list[] = {
         INSTANCE(cudnn_batch_normalization_bwd_t)
 
         // Pooling
-        INSTANCE(cudnn_pooling_fwd_t)
-        INSTANCE(cudnn_pooling_bwd_t)
+        //INSTANCE(cudnn_pooling_fwd_t)
+        //INSTANCE(cudnn_pooling_bwd_t)
+        INSTANCE(sycl::ref_pooling_fwd_t)
+        INSTANCE(sycl::ref_pooling_bwd_t)
 
         // LRN
         INSTANCE(cudnn_lrn_fwd_t)
