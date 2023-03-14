@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2022 Intel Corporation
+* Copyright 2023 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -43,8 +43,47 @@ struct sycl_binary_conf_t {
     sycl_post_ops_t post_ops;
 };
 
-CHECK_SYCL_KERNEL_ARG_TYPE(sycl_binary_conf_t);
+struct sycl_batch_normalization_conf_t {
+    prop_kind_t prop_kind;
+    int ndims;
+    size_t n_thr;
+    unsigned flags;
+    size_t wk_size;
+    int block_size;
+    int wg_size;
+    bool use_scale;
+    bool use_shift;
+    float alpha;
+    bool dir;
+    sycl_md_t data_md;
+    sycl_md_t src1_md;
+    sycl_md_t dst1_md;
+    sycl_md_t diff_data_md;
+    sycl_md_t diff_src1_md;
+    sycl_md_t data_scaleshift_md;
+    sycl_md_t diff_data_scaleshift_md;
+    sycl_md_t stat_md;
+    sycl_md_t var_md;
+    sycl_md_t ws_md;
+    sycl_md_t dst_md;
+    sycl_md_t diff_dst_md;
+    dim_t N;
+    dim_t C;
+    dim_t D;
+    dim_t H;
+    dim_t W;
+    float batch_norm_epsilon;
+    bool save_stats;
+    bool calculate_stats;
+    bool calculate_diff_stats;
+    bool fuse_norm_relu;
+    bool zero_dims;
+    bool is_training;
+    bool with_relu;
+};
 
+CHECK_SYCL_KERNEL_ARG_TYPE(sycl_binary_conf_t);
+CHECK_SYCL_KERNEL_ARG_TYPE(sycl_batch_normalization_conf_t);
 } // namespace sycl
 } // namespace gpu
 } // namespace impl
