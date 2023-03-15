@@ -59,6 +59,7 @@ status_t ref_batch_normalization_fwd_t::pd_t::init_conf() {
     conf_.save_stats = is_training();
     conf_.calculate_stats = !stats_is_src();
     conf_.fuse_norm_relu = fuse_norm_relu();
+    conf_.fuse_norm_add_relu = fuse_norm_add_relu();
     conf_.zero_dims = has_zero_dim_memory();
     conf_.is_training = is_training();
     conf_.with_relu = with_relu_post_op(is_training());
@@ -163,6 +164,7 @@ status_t ref_batch_normalization_bwd_t::pd_t::init_conf() {
 
     conf_.batch_norm_epsilon = desc()->batch_norm_epsilon;
     conf_.fuse_norm_relu = fuse_norm_relu();
+    conf_.fuse_norm_add_relu = fuse_norm_add_relu();
     conf_.calculate_diff_stats = !use_global_stats();
     conf_.alpha = alpha();
 

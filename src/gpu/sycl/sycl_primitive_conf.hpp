@@ -77,6 +77,7 @@ struct sycl_batch_normalization_conf_t {
     bool calculate_stats;
     bool calculate_diff_stats;
     bool fuse_norm_relu;
+    bool fuse_norm_add_relu;
     bool zero_dims;
     bool is_training;
     bool with_relu;

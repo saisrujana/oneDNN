@@ -147,6 +147,22 @@ private:
                     }
                 }
 
+                if (conf_.fuse_norm_add_relu) {
+                    float v = load_float_value(
+                            src1_md().data_type(), src1_ptr(), d_off);
+                    bn_res = bn_res + v;
+                    if (bn_res <= 0) {
+                        bn_res = 0;
+                        if (conf_.is_training)
+                            store_float_value(
+                                    ws_md().data_type(), 0, ws_ptr(), d_off);
+                    } else {
+                        if (conf_.is_training)
+                            store_float_value(
+                                    ws_md().data_type(), 1, ws_ptr(), d_off);
+                    }
+                }
+
                 if (data_md().data_type() == data_type::s8) {
                     bn_res = ::dnnl::impl::sycl::qz_a1b0<float,
                             sycl_prec_traits<data_type::s8>::type>()(
@@ -300,6 +316,22 @@ private:
                                                - v_mean))
                         + sv;
                 if (conf_.fuse_norm_relu) {
+                    if (bn_res <= 0) {
+                        bn_res = 0;
+                        if (conf_.is_training)
+                            store_float_value(
+                                    ws_md().data_type(), 0, ws_ptr(), d_off);
+                    } else {
+                        if (conf_.is_training)
+                            store_float_value(
+                                    ws_md().data_type(), 1, ws_ptr(), d_off);
+                    }
+                }
+
+                if (conf_.fuse_norm_add_relu) {
+                    float v = load_float_value(
+                            src1_md().data_type(), src1_ptr(), d_off);
+                    bn_res = bn_res + v;
                     if (bn_res <= 0) {
                         bn_res = 0;
                         if (conf_.is_training)
@@ -480,6 +512,15 @@ private:
                                 ws_md().data_type(), ws_ptr(), s_off))
                     dd = 0;
 
+                if (conf_.fuse_norm_add_relu) {
+                    dd = ::dnnl::impl::math::relu_bwd(dd,
+                            load_float_value(
+                                    ws_md().data_type(), ws_ptr(), s_off),
+                            conf_.alpha);
+                    store_float_value(diff_src1_md().data_type(), dd,
+                            diff_src1_ptr(), s_off);
+                }
+
                 diff_gamma
                         += (maybe_up_convert(load_float_value(
                                     data_md().data_type(), data_ptr(), s_off))
@@ -514,6 +555,15 @@ private:
                         && !load_float_value(
                                 ws_md().data_type(), ws_ptr(), s_off))
                     dd = 0;
+
+                if (conf_.fuse_norm_add_relu) {
+                    dd = ::dnnl::impl::math::relu_bwd(dd,
+                            load_float_value(
+                                    ws_md().data_type(), ws_ptr(), s_off),
+                            conf_.alpha);
+                    store_float_value(diff_src1_md().data_type(), dd,
+                            diff_src1_ptr(), s_off);
+                }
 
                 float v_diff_src = dd;
                 if (conf_.calculate_diff_stats) {

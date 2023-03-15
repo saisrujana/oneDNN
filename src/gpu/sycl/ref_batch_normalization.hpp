@@ -64,7 +64,8 @@ struct ref_batch_normalization_fwd_t : public sycl_gpu_primitive_t {
             if (!ok) return status::unimplemented;
             if (src_md(0)->data_type == s8 && !stats_is_src())
                 return status::unimplemented;
-            if (is_training() && (fuse_norm_relu())) init_default_ws(8);
+            if (is_training() && (fuse_norm_relu() || fuse_norm_add_relu()))
+                init_default_ws(8);
             // TODO: extend sycl device info to check supported sub-group sizes.
             auto *sycl_engine
                     = utils::downcast<impl::sycl::sycl_engine_base_t *>(engine);
@@ -136,7 +137,7 @@ struct ref_batch_normalization_bwd_t : public sycl_gpu_primitive_t {
                             == memory_desc_wrapper(diff_dst_md());
 
             if (!ok) return status::unimplemented;
-            if (fuse_norm_relu()) {
+            if (fuse_norm_relu() || fuse_norm_add_relu()) {
                 init_default_ws(8);
                 if (!compare_ws(hint_fwd_pd_)) return status::unimplemented;
             }
@@ -150,7 +151,7 @@ struct ref_batch_normalization_bwd_t : public sycl_gpu_primitive_t {
             if (!std::any_of(supported_sub_group_sizes.cbegin(),
                         supported_sub_group_sizes.cend(),
                         [](size_t size) { return size == 32; })) {
-                printf("Yes");
+
                 return status::unimplemented;
             }
 
