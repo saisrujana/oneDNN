@@ -39,6 +39,10 @@ status_t ref_layer_normalization_fwd_t::pd_t::init_conf() {
     conf_.block_size = 16;
     conf_.wg_size = 32;
 
+    conf_.rt_scaling = !attr()->scales_.defined();
+    conf_.src_def = attr()->scales_.get(DNNL_ARG_SRC).has_default_values();
+    conf_.dst_def = attr()->scales_.get(DNNL_ARG_DST).has_default_values();
+
     conf_.use_scale = use_scale();
     conf_.use_shift = use_shift();
     conf_.data_md = sycl_md_t(src_md(0));
@@ -81,10 +85,15 @@ status_t ref_layer_normalization_fwd_t::execute_forward(
             auto scale = CTX_IN_SYCL_KERNEL_MEMORY(DNNL_ARG_SCALE);
             auto shift = CTX_IN_SYCL_KERNEL_MEMORY(DNNL_ARG_SHIFT);
             auto mean = CTX_IN_SYCL_KERNEL_MEMORY(DNNL_ARG_MEAN);
+            auto src_scales = CTX_IN_SYCL_KERNEL_MEMORY(
+                    DNNL_ARG_ATTR_SCALES | DNNL_ARG_SRC);
+            auto dst_scales = CTX_IN_SYCL_KERNEL_MEMORY(
+                    DNNL_ARG_ATTR_SCALES | DNNL_ARG_DST);
             auto var = CTX_IN_SYCL_KERNEL_MEMORY(DNNL_ARG_VARIANCE);
             auto dst = CTX_OUT_SYCL_KERNEL_MEMORY(DNNL_ARG_DST);
             layer_normalization_fwd_kernel_vec_t layer_normalization_fwd_kernel(
-                    pd()->conf_, data, scale, shift, mean, var, dst);
+                    pd()->conf_, data, scale, shift, mean, var, dst, src_scales,
+                    dst_scales);
             const int block_size = pd()->conf_.block_size;
             const int wg_size = pd()->conf_.wg_size;
 
@@ -100,11 +109,15 @@ status_t ref_layer_normalization_fwd_t::execute_forward(
             auto scale = CTX_IN_SYCL_KERNEL_MEMORY(DNNL_ARG_SCALE);
             auto shift = CTX_IN_SYCL_KERNEL_MEMORY(DNNL_ARG_SHIFT);
             auto mean = CTX_OUT_SYCL_KERNEL_MEMORY(DNNL_ARG_MEAN);
+            auto src_scales = CTX_IN_SYCL_KERNEL_MEMORY(
+                    DNNL_ARG_ATTR_SCALES | DNNL_ARG_SRC);
+            auto dst_scales = CTX_IN_SYCL_KERNEL_MEMORY(
+                    DNNL_ARG_ATTR_SCALES | DNNL_ARG_DST);
             auto var = CTX_OUT_SYCL_KERNEL_MEMORY(DNNL_ARG_VARIANCE);
             auto dst = CTX_OUT_SYCL_KERNEL_MEMORY(DNNL_ARG_DST);
             layer_normalization_fwd_kernel_vec_t1
-                    layer_normalization_fwd_kernel1(
-                            pd()->conf_, data, scale, shift, dst, mean, var);
+                    layer_normalization_fwd_kernel1(pd()->conf_, data, scale,
+                            shift, dst, mean, var, src_scales, dst_scales);
 
             const int block_size = pd()->conf_.block_size;
             const int wg_size = pd()->conf_.wg_size;

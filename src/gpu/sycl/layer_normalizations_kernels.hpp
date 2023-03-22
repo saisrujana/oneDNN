@@ -37,14 +37,17 @@ struct layer_normalization_fwd_kernel_vec_t {
             const sycl_layer_normalization_conf_t &conf,
             sycl_in_memory_arg_t &data, sycl_in_memory_arg_t &scale,
             sycl_in_memory_arg_t &shift, sycl_in_memory_arg_t &stat,
-            sycl_in_memory_arg_t &var, sycl_out_memory_arg_t &dst)
+            sycl_in_memory_arg_t &var, sycl_out_memory_arg_t &dst,
+            sycl_in_memory_arg_t &rt_scale, sycl_in_memory_arg_t &dst_scale)
         : conf_(conf)
         , data_(data)
         , scale_(scale)
         , shift_(shift)
         , stat_(stat)
         , var_(var)
-        , dst_(dst) {}
+        , dst_(dst)
+        , rt_scale_(rt_scale)
+        , dst_scale_(dst_scale) {}
 
     [[sycl::reqd_sub_group_size(32)]] void operator()(
             ::sycl::nd_item<1> item) const {
@@ -79,6 +82,9 @@ private:
     void *var_ptr() const { return var_.get_pointer(); }
     void *dst_ptr() const { return dst_.get_pointer(); }
 
+    void *rt_oscale_ptr() const { return rt_scale_.get_pointer(); }
+    void *dst_oscale_ptr() const { return dst_scale_.get_pointer(); }
+
     inline void compute_alg_n(int idx) const {
         float eps = epsilon();
         const size_t s_off = conf_.stat_md.off_l(idx);
@@ -109,6 +115,16 @@ private:
                         data_md().data_type(), data_ptr(), src_off);
                 float d = sm * (s - v_mean) + sv;
 
+                float sr = conf_.src_def
+                        ? 1.f
+                        : load_float_value(data_scaleshift_md().data_type(),
+                                rt_oscale_ptr(), 0);
+                float ds = conf_.dst_def
+                        ? 1.f
+                        : load_float_value(data_scaleshift_md().data_type(),
+                                dst_oscale_ptr(), 0);
+                d = (d * sr * (1.f / ds));
+
                 store_float_value(dst_md().data_type(), d, dst_ptr(), d_off);
             }
         }
@@ -121,6 +137,8 @@ private:
     sycl_in_memory_arg_t stat_;
     sycl_in_memory_arg_t var_;
     sycl_out_memory_arg_t dst_;
+    sycl_in_memory_arg_t rt_scale_;
+    sycl_in_memory_arg_t dst_scale_;
 };
 
 //second_forward_kernel
@@ -131,14 +149,17 @@ struct layer_normalization_fwd_kernel_vec_t1 {
             const sycl_layer_normalization_conf_t &conf,
             sycl_in_memory_arg_t &data, sycl_in_memory_arg_t &scale,
             sycl_in_memory_arg_t &shift, sycl_out_memory_arg_t &dst,
-            sycl_out_memory_arg_t &mean_out, sycl_out_memory_arg_t &var_out)
+            sycl_out_memory_arg_t &mean_out, sycl_out_memory_arg_t &var_out,
+            sycl_in_memory_arg_t &rt_scale, sycl_in_memory_arg_t &dst_scale)
         : conf_(conf)
         , data_(data)
         , scale_(scale)
         , shift_(shift)
         , dst_(dst)
         , mean_out_(mean_out)
-        , var_out_(var_out) {}
+        , var_out_(var_out)
+        , rt_scale_(rt_scale)
+        , dst_scale_(dst_scale) {}
 
     [[sycl::reqd_sub_group_size(32)]] void operator()(
             ::sycl::nd_item<1> item) const {
@@ -173,6 +194,8 @@ private:
     void *stat_out_ptr() const { return mean_out_.get_pointer(); }
     void *var_out_ptr() const { return var_out_.get_pointer(); }
     void *dst_ptr() const { return dst_.get_pointer(); }
+    void *rt_oscale_ptr() const { return rt_scale_.get_pointer(); }
+    void *dst_oscale_ptr() const { return dst_scale_.get_pointer(); }
 
     inline void compute_alg_n(int idx) const {
         if (conf_.zero_dims && conf_.calculate_stats && conf_.save_stats) {
@@ -229,6 +252,16 @@ private:
                         data_md().data_type(), data_ptr(), src_off);
                 float d = sm * (s - v_mean) + sv;
 
+                float sr = conf_.src_def
+                        ? 1.f
+                        : load_float_value(data_scaleshift_md().data_type(),
+                                rt_oscale_ptr(), 0);
+                float ds = conf_.dst_def
+                        ? 1.f
+                        : load_float_value(data_scaleshift_md().data_type(),
+                                dst_oscale_ptr(), 0);
+                d = (d * sr * (1.f / ds));
+
                 store_float_value(dst_md().data_type(), d, dst_ptr(), d_off);
             }
         }
@@ -248,6 +281,8 @@ private:
     sycl_out_memory_arg_t dst_;
     sycl_out_memory_arg_t mean_out_;
     sycl_out_memory_arg_t var_out_;
+    sycl_in_memory_arg_t rt_scale_;
+    sycl_in_memory_arg_t dst_scale_;
 };
 
 //backward
