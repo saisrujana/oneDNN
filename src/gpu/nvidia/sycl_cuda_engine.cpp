@@ -224,13 +224,8 @@ constexpr dnnl::impl::impl_list_item_t sycl_cuda_impl_list[] = {
         INSTANCE(cudnn_lrn_fwd_t)
         INSTANCE(cudnn_lrn_bwd_t)
 
-        INSTANCE(sycl::ref_sycl_lrn_fwd_t<data_type::f32>)
-        INSTANCE(sycl::ref_sycl_lrn_fwd_t<data_type::bf16>)
-        INSTANCE(sycl::ref_sycl_lrn_fwd_t<data_type::f16>)
-
-        INSTANCE(sycl::ref_sycl_lrn_bwd_t<data_type::f32>)
-        INSTANCE(sycl::ref_sycl_lrn_bwd_t<data_type::bf16>)
-        INSTANCE(sycl::ref_sycl_lrn_bwd_t<data_type::f16>)
+        INSTANCE(sycl::ref_sycl_lrn_fwd_t)
+        INSTANCE(sycl::ref_sycl_lrn_bwd_t)
 
         // Inner Product
         INSTANCE(cudnn_gemm_inner_product_fwd_t)

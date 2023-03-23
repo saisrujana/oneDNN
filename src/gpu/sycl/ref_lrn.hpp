@@ -26,7 +26,6 @@ namespace impl {
 namespace gpu {
 namespace sycl {
 
-template <impl::data_type_t data_type>
 struct ref_sycl_lrn_fwd_t : public sycl_gpu_primitive_t {
     using sycl_gpu_primitive_t::sycl_gpu_primitive_t;
 
@@ -44,7 +43,7 @@ struct ref_sycl_lrn_fwd_t : public sycl_gpu_primitive_t {
 
             bool ok = is_fwd()
                     && utils::everyone_is(
-                            data_type, src_md()->data_type, dst_md()->data_type)
+                            src_md()->data_type, dst_md()->data_type)
                     && (src_md(0)->format_desc.blocking.inner_nblks == 0)
                     && attr()->has_default_values()
                     && set_default_formats_common() && src_d == dst_d;
@@ -77,8 +76,6 @@ struct ref_sycl_lrn_fwd_t : public sycl_gpu_primitive_t {
 
     status_t init(engine_t *engine) override;
 
-    using data_t = typename prec_traits<data_type>::type;
-
     status_t execute(const exec_ctx_t &ctx) const override {
         return execute_forward(ctx);
     }
@@ -89,7 +86,6 @@ private:
     compute::kernel_t kernel_;
 };
 
-template <data_type_t data_type>
 struct ref_sycl_lrn_bwd_t : public sycl_gpu_primitive_t {
     using sycl_gpu_primitive_t::sycl_gpu_primitive_t;
 
@@ -106,7 +102,7 @@ struct ref_sycl_lrn_bwd_t : public sycl_gpu_primitive_t {
             const memory_desc_wrapper diff_dst_d(diff_dst_md());
 
             bool ok = !is_fwd()
-                    && utils::everyone_is(data_type, src_md()->data_type,
+                    && utils::everyone_is(src_md()->data_type,
                             diff_src_md()->data_type, diff_dst_md()->data_type)
                     && attr()->has_default_values()
                     && set_default_formats_common() && diff_dst_d == diff_src_d;
@@ -138,8 +134,6 @@ struct ref_sycl_lrn_bwd_t : public sycl_gpu_primitive_t {
     };
 
     status_t init(engine_t *engine) override;
-
-    using data_t = typename prec_traits<data_type>::type;
 
     status_t execute(const exec_ctx_t &ctx) const override {
         return execute_backward(ctx);

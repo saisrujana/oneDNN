@@ -23,8 +23,7 @@ namespace gpu {
 namespace sycl {
 
 using namespace impl::sycl;
-template <data_type_t data_type>
-status_t ref_sycl_lrn_fwd_t<data_type>::pd_t::init_conf() {
+status_t ref_sycl_lrn_fwd_t::pd_t::init_conf() {
 
     conf_ = sycl_lrn_conf_t();
     conf_.src_md = sycl_md_t(src_md());
@@ -58,16 +57,13 @@ status_t ref_sycl_lrn_fwd_t<data_type>::pd_t::init_conf() {
     return status::success;
 }
 
-template <data_type_t data_type>
-status_t ref_sycl_lrn_fwd_t<data_type>::init(engine_t *engine) {
+status_t ref_sycl_lrn_fwd_t::init(engine_t *engine) {
     const auto kid = ::sycl::get_kernel_id<lrn_fwd_kernel_vec_t>();
     CHECK(create_kernel(engine, kid, &kernel_));
     return status::success;
 }
 
-template <data_type_t data_type>
-status_t ref_sycl_lrn_fwd_t<data_type>::execute_forward(
-        const exec_ctx_t &ctx) const {
+status_t ref_sycl_lrn_fwd_t::execute_forward(const exec_ctx_t &ctx) const {
 
     using namespace alg_kind;
     using namespace format_tag;
@@ -93,8 +89,7 @@ status_t ref_sycl_lrn_fwd_t<data_type>::execute_forward(
     return status::success;
 }
 
-template <data_type_t data_type>
-status_t ref_sycl_lrn_bwd_t<data_type>::pd_t::init_conf() {
+status_t ref_sycl_lrn_bwd_t::pd_t::init_conf() {
 
     conf_ = sycl_lrn_conf_t();
     conf_.src_md = sycl_md_t(src_md());
@@ -129,16 +124,13 @@ status_t ref_sycl_lrn_bwd_t<data_type>::pd_t::init_conf() {
     return status::success;
 }
 
-template <data_type_t data_type>
-status_t ref_sycl_lrn_bwd_t<data_type>::init(engine_t *engine) {
+status_t ref_sycl_lrn_bwd_t::init(engine_t *engine) {
     const auto kid = ::sycl::get_kernel_id<lrn_bwd_kernel_vec_t>();
     CHECK(create_kernel(engine, kid, &kernel_));
     return status::success;
 }
 
-template <data_type_t data_type>
-status_t ref_sycl_lrn_bwd_t<data_type>::execute_backward(
-        const exec_ctx_t &ctx) const {
+status_t ref_sycl_lrn_bwd_t::execute_backward(const exec_ctx_t &ctx) const {
 
     parallel_for(ctx, kernel_, [&](::sycl::handler &cgh) {
         auto diff_src_arg = CTX_IN_SYCL_KERNEL_MEMORY(DNNL_ARG_SRC);
@@ -162,14 +154,6 @@ status_t ref_sycl_lrn_bwd_t<data_type>::execute_backward(
 
     return status::success;
 }
-
-template struct ref_sycl_lrn_fwd_t<data_type::f32>;
-template struct ref_sycl_lrn_fwd_t<data_type::bf16>;
-template struct ref_sycl_lrn_fwd_t<data_type::f16>;
-
-template struct ref_sycl_lrn_bwd_t<data_type::f32>;
-template struct ref_sycl_lrn_bwd_t<data_type::bf16>;
-template struct ref_sycl_lrn_bwd_t<data_type::f16>;
 
 } // namespace sycl
 } // namespace gpu
